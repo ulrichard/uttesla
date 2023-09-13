@@ -1,0 +1,15 @@
+{
+    "name": "uttesla.ulrichard",
+    "description": "Bitcoin Lightning Wallet",
+    "architecture": "@CLICK_ARCH@",
+    "title": "uttesla",
+    "hooks": {
+        "uttesla": {
+            "apparmor": "uttesla.apparmor",
+            "desktop":  "uttesla.desktop"
+        }
+    },
+    "version": "0.0.1",
+    "maintainer": "Richard Ulrich <richi+uttesla@ulrichard.ch>",
+    "framework" : "@CLICK_FRAMEWORK@"
+}

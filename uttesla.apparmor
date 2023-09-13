@@ -1,0 +1,4 @@
+{
+    "policy_groups": ["connectivity", "networking"],
+    "policy_version": 20.04
+}

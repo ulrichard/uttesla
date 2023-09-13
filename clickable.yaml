@@ -1,0 +1,10 @@
+clickable_minimum_required: 7.1.2
+builder: rust
+framework: ubuntu-sdk-20.04
+kill: uttesla
+install_root_data:
+- manifest.json
+- uttesla.apparmor
+- uttesla.desktop
+- assets
+rust_channel: "1.70"
