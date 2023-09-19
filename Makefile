@@ -3,7 +3,7 @@
 # In desktop mode /home/phablet is mounted to ~/.clickable/home/. You can manipulate and add data there.
 # If the logs target doesn't show the logs, check the following file on the device:  ~/.cache/upstart/application-click-utlnwallet.ulrichard_utlnwallet_0.0.2.log
 
-gui:
+gui: /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt
 	export all_proxy=""
 	export ALL_PROXY=""
 	export PATH=$PATH:~/.local/bin
@@ -43,3 +43,8 @@ init:
 setup:
 	sudo apt install docker.io adb git python3 python3-pip mesa-utils libgl1-mesa-glx
 	pip3 install --user --break-system-packages --upgrade clickable-ut
+
+
+/home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt: /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt.gpg
+	bash -c "gpg -d /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt.gpg > /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt"
+

@@ -49,37 +49,23 @@ Page {
             bottom: parent.bottom
         }
 
-        Label {
-            id: label_send_address
-            text: i18n.tr('Address or Invoice')
-        }
-
-        TextField {
-            id: send_address
-            placeholderText: i18n.tr('Address or Invoice')
-            Layout.fillWidth: true
-        }
-
-        Label {
-            id: label_send_amount
-            text: i18n.tr('Amount [BTC]')
-        }
-
-        TextField {
-            id: send_amount
-            placeholderText: i18n.tr('Amount')
-            width: units.gu(20)
-        }
-
         Button {
             text: i18n.tr('Login')
             onClicked: {
                 main_timer.stop();
 
-                greeter.login();
+                var vehicles = greeter.login().split("\n");
+                vehicle.model = vehicles;
 
                 main_timer.interval = 1000;
                 main_timer.start();
+            }
+        }
+
+        ComboBox {
+            id: vehicle
+            onActivated: (i) => {
+                var vehicle_data = greeter.get_vehicle_data(i).split("\n");
             }
         }
 
@@ -107,6 +93,24 @@ Page {
                 main_timer.interval = 20000;
                 main_timer.start();
                 console.timeEnd("main timer");
+            }
+        }
+        Timer {
+            id: event_timer;
+            interval: 2000;
+            running: true;
+            repeat: true
+
+            onTriggered: {
+                // console.log("event timer enter");
+                event_timer.stop();
+                eventlog.color = "steelblue"
+
+                eventlog.text = greeter.update_log();
+
+                eventlog.color = "black"
+                event_timer.start();
+                // console.log("event timer leave");
             }
         }
 

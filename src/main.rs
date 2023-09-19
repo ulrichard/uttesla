@@ -27,7 +27,8 @@ mod qrc;
 
 use teslatte::auth::AccessToken;
 //use teslatte::vehicles::SetChargeLimit;
-use teslatte::Api;
+//use teslatte::vehicles::Vehicle;
+use teslatte::{Api, VehicleId};
 
 use std::{env, fs::create_dir_all, path::PathBuf};
 
@@ -38,11 +39,23 @@ struct Greeter {
     base: qt_base_class!(trait QObject),
     eventlog: std::collections::VecDeque<String>,
     api: Option<Api>,
+    vehicles: Vec<(VehicleId, String)>,
 
     login: qt_method!(
         fn login(&mut self) -> QString {
             self.api = self.log_err(self.log_in());
-            self.log_err_or(self.get_vehicles(), "".to_string()).into()
+            let names = self.get_vehicles();
+            self.log_err_or(names, "".to_string()).into()
+        }
+    ),
+    update_log: qt_method!(
+        fn update_log(&mut self) -> QString {
+            self.eventlog.truncate(5);
+            self.eventlog
+                .iter()
+                .fold("".to_string(), |acc, msg| format!("{}\n{}", acc, msg))
+                .trim()
+                .into()
         }
     ),
 }
@@ -62,6 +75,7 @@ impl Greeter {
                     access_token_file, e
                 )
             })?;
+            // println!("token: {}", tok);
             Api::new(AccessToken(tok), None)
         } else {
             return Err("not supported yet".to_string());
@@ -71,11 +85,27 @@ impl Greeter {
         Ok(api)
     }
 
-    fn get_vehicles(&self) -> Result<String, String> {
-        let api = self.api.ok_or("Not logged in")?;
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
-        let vehicles = rt.block_on(api.vehicles());
-
+    fn get_vehicles(&mut self) -> Result<String, String> {
+    return Ok("Lightning\nHook".to_string());
+        let api = self.api.as_ref().ok_or("Not logged in")?;
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let vehicles = rt
+            .block_on(api.vehicles())
+            .map_err(|e| format!("Failed to get vehicles: {}", e))?;
+        println!("{:?}", vehicles);
+        self.vehicles = vehicles
+            .data()
+            .iter()
+            .map(|v| (v.id.clone(), v.display_name.clone()))
+            .collect();
+        Ok(self
+            .vehicles
+            .iter()
+            .fold("".to_string(), |acc, (_id, name)| {
+                format!("{}\n{}", acc, name)
+            })
+            .trim()
+            .to_string())
     }
 
     fn log_err<T>(&mut self, res: Result<T, String>) -> Option<T> {
@@ -146,14 +176,34 @@ mod tests {
     use super::*;
 
     #[test]
-    #[should_panic(expected = "Unknown input format")]
-    fn test_login_fail() {
-        let api = match env::var("TESLA_ACCESS_TOKEN") {
-            Ok(t) => Api::new(AccessToken(t), None),
-            Err(_) => Api::from_interactive_url().await.unwrap(),
-        };
+    fn test_login() {
+        let app_data_path =
+            unsafe { QStandardPaths::writable_location(StandardLocation::AppDataLocation) };
+        let app_data_path = PathBuf::from(app_data_path.to_std_string());
+        create_dir_all(&app_data_path).unwrap();
+        let access_token_file = app_data_path.join("tesla_access_token.txt");
 
-        let vehicles = api.vehicles().await.unwrap();
+        println!("access_token_file: {}", access_token_file.display());
+        let tok = std::fs::read_to_string(&access_token_file).unwrap();
+        println!("access_token: {}", tok);
+        let api = Api::new(AccessToken(tok), None);
+
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let vehicles = rt.block_on(api.vehicles()).unwrap();
+        println!("{:?}", vehicles);
+        dbg!(&vehicles);
+    }
+
+    #[test]
+    #[should_panic(expected = "DecodeJsonError")]
+    fn test_login_fail() {
+        let tok = "ThisIsNotAValidAccessToken".to_string();
+        println!("access_token: {}", tok);
+        let api = Api::new(AccessToken(tok), None);
+
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let vehicles = rt.block_on(api.vehicles()).unwrap();
+        println!("{:?}", vehicles);
         dbg!(&vehicles);
     }
 }
