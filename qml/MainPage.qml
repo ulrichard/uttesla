@@ -50,25 +50,15 @@ Page {
             bottom: parent.bottom
         }
 
+        // vehicles
         RowLayout {
             spacing: units.gui(2)
-            anchors {
-                margins: units.gu(2)
-                left: parent.left
-                right: parent.right
-            }
-
 
             Button {
                 text: i18n.tr('Login')
                 onClicked: {
-                    main_timer.stop();
-
                     var vehicles = greeter.login().split("\n");
                     vehicle.model = vehicles;
-
-                    main_timer.interval = 1000;
-                    main_timer.start();
                 }
             }
 
@@ -113,25 +103,6 @@ Page {
 	    text: "node is starting\n\n\n\n\n"
 	}
 
-
-        Timer {
-            id: main_timer;
-            interval: 2000;
-            running: true;
-            repeat: true
-
-            onTriggered: {
-                console.time("main timer");
-                main_timer.stop();
-                eventlog.color = "steelblue"
-
-
-                eventlog.color = "black"
-                main_timer.interval = 20000;
-                main_timer.start();
-                console.timeEnd("main timer");
-            }
-        }
         Timer {
             id: event_timer;
             interval: 2000;
@@ -139,15 +110,7 @@ Page {
             repeat: true
 
             onTriggered: {
-                // console.log("event timer enter");
-                event_timer.stop();
-                eventlog.color = "steelblue"
-
                 eventlog.text = greeter.update_log();
-
-                eventlog.color = "black"
-                event_timer.start();
-                // console.log("event timer leave");
             }
         }
 
