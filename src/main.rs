@@ -58,6 +58,12 @@ struct Greeter {
                 .into()
         }
     ),
+    get_vehicle_data: qt_method!(
+        fn get_vehicle_data(&mut self, idx: i64) -> QString {
+
+            "47.16610,8.51575".to_string().into()
+        }
+    ),
 }
 
 impl Greeter {
@@ -86,7 +92,7 @@ impl Greeter {
     }
 
     fn get_vehicles(&mut self) -> Result<String, String> {
-    return Ok("Lightning\nHook".to_string());
+        //return Ok("Lightning\nHook".to_string());
         let api = self.api.as_ref().ok_or("Not logged in")?;
         let rt = tokio::runtime::Runtime::new().unwrap();
         let vehicles = rt

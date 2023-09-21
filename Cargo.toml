@@ -11,7 +11,7 @@ qt_core = "0.5.0"
 gettext-rs = "0.7"
 cstr = "0.2.8"
 cpp = "0.5"
-teslatte = "0.1.3"
+teslatte = "0.1.5"
 tokio = "1.32"
 
 [build-dependencies]

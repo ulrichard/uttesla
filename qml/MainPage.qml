@@ -19,6 +19,7 @@ import QtQuick.Controls 2.2
 import Ubuntu.Components 1.3
 import QtQuick.Layouts 1.3
 import Qt.labs.settings 1.0
+import QtQml 2.12
 
 import Greeter 1.0
 
@@ -49,23 +50,59 @@ Page {
             bottom: parent.bottom
         }
 
-        Button {
-            text: i18n.tr('Login')
-            onClicked: {
-                main_timer.stop();
+        RowLayout {
+            spacing: units.gui(2)
+            anchors {
+                margins: units.gu(2)
+                left: parent.left
+                right: parent.right
+            }
 
-                var vehicles = greeter.login().split("\n");
-                vehicle.model = vehicles;
 
-                main_timer.interval = 1000;
-                main_timer.start();
+            Button {
+                text: i18n.tr('Login')
+                onClicked: {
+                    main_timer.stop();
+
+                    var vehicles = greeter.login().split("\n");
+                    vehicle.model = vehicles;
+
+                    main_timer.interval = 1000;
+                    main_timer.start();
+                }
+            }
+
+            ComboBox {
+                id: vehicle
+                onActivated: (i) => {
+                    var vehicle_data = greeter.get_vehicle_data(i).split("\n");
+                    txt_pos.text = vehicle_data[0];
+                }
             }
         }
 
-        ComboBox {
-            id: vehicle
-            onActivated: (i) => {
-                var vehicle_data = greeter.get_vehicle_data(i).split("\n");
+	// position
+        RowLayout {
+            spacing: units.gui(2)
+
+            Label {
+                id: lbl_pos
+                text: i18n.tr('Pos')
+            }
+
+            TextField {
+                id: txt_pos
+                placeholderText: i18n.tr('Position')
+                enabled: false
+            }
+
+            Button {
+                id: btn_pos
+                text: i18n.tr('Map')
+                onClicked: {
+                    var url = 'geo:' + txt_pos.text;
+                    Qt.openUrlExternally(url);
+                }
             }
         }
 
