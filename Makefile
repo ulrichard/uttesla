@@ -48,3 +48,10 @@ setup:
 /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt: /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt.gpg
 	bash -c "gpg -d /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt.gpg > /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt"
 
+auth: teslatte_builder
+	docker run --interactive --rm --tty teslatte_ut cargo run --bin teslatte -- auth
+
+teslatte_builder:
+	docker build --tag teslatte_ut \
+		--build-arg UID="$(shell id -u)" \
+		.
