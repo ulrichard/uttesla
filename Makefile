@@ -3,7 +3,7 @@
 # In desktop mode /home/phablet is mounted to ~/.clickable/home/. You can manipulate and add data there.
 # If the logs target doesn't show the logs, check the following file on the device:  ~/.cache/upstart/application-click-uttesla.ulrichard_uttesla_0.0.2.log
 
-gui: /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt
+gui: /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_refresh_token.txt
 	export all_proxy=""
 	export ALL_PROXY=""
 	export PATH=$PATH:~/.local/bin
@@ -48,8 +48,16 @@ setup:
 /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt: /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt.gpg
 	bash -c "gpg -d /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt.gpg > /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt"
 
+/home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_refresh_token.txt: /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_refresh_token.txt.gpg
+	bash -c "gpg -d /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_refresh_token.txt.gpg > /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_refresh_token.txt"
+
 auth: teslatte_builder
 	docker run --interactive --rm --tty teslatte_ut cargo run --bin teslatte -- auth
+
+vehicles: teslatte_builder /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt
+	docker run --interactive --rm --tty teslatte_ut cargo run --bin teslatte -- api -a $(shell cat /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt) vehicles
+	docker run --interactive --rm --tty teslatte_ut cargo run --bin teslatte -- api -a $(shell cat /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt) vehicle 1492932717794313 vehicle-data || true
+	docker run --interactive --rm --tty teslatte_ut cargo run --bin teslatte -- api -a $(shell cat /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt) vehicle 1492931365719407 vehicle-data
 
 teslatte_builder:
 	docker build --tag teslatte_ut \

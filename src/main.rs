@@ -25,14 +25,26 @@ use qt_core::{q_standard_paths::StandardLocation, QStandardPaths};
 mod constants;
 mod qrc;
 
-use teslatte::auth::AccessToken;
+use teslatte::auth::{AccessToken, RefreshToken};
 //use teslatte::vehicles::SetChargeLimit;
 //use teslatte::vehicles::Vehicle;
+use serde::Serialize;
 use teslatte::{Api, VehicleId};
 
 use std::{env, fs::create_dir_all, path::PathBuf};
 
 use gettextrs::{bindtextdomain, textdomain};
+
+#[derive(Debug, Clone, Serialize)]
+struct ReducedVehicleData {
+    pub gps_pos: String,
+    pub inside_temp: String,
+    pub outside_temp: String,
+    pub fan_status: i64,
+    pub battery_level: i64,
+    pub battery_range: f64,
+    pub charge_amps: i64,
+}
 
 #[derive(QObject, Default)]
 struct Greeter {
@@ -60,8 +72,9 @@ struct Greeter {
     ),
     get_vehicle_data: qt_method!(
         fn get_vehicle_data(&mut self, idx: i64) -> QString {
-
-            "47.16610,8.51575".to_string().into()
+            let vehicle = self.get_vehicle(idx);
+            println!("{}", vehicle.clone().unwrap());
+            self.log_err_or(vehicle, "".to_string()).into()
         }
     ),
 }
@@ -73,14 +86,41 @@ impl Greeter {
         let app_data_path = PathBuf::from(app_data_path.to_std_string());
         create_dir_all(&app_data_path).unwrap();
         let access_token_file = app_data_path.join("tesla_access_token.txt");
+        let refresh_token_file = app_data_path.join("tesla_refresh_token.txt");
 
-        let api = if access_token_file.exists() {
-            let tok = std::fs::read_to_string(&access_token_file).map_err(|e| {
-                format!(
-                    "Failed to read the tesla access token file {:?}: {}",
-                    access_token_file, e
-                )
-            })?;
+        let api = if refresh_token_file.exists() {
+            let tok = std::fs::read_to_string(&refresh_token_file)
+                .map_err(|e| {
+                    format!(
+                        "Failed to read the tesla refresh token file {:?}: {}",
+                        refresh_token_file, e
+                    )
+                })?
+                .trim()
+                .to_string();
+
+            let rt = tokio::runtime::Runtime::new().unwrap();
+
+            let api = rt
+                .block_on(Api::from_refresh_token(&RefreshToken(tok)))
+                .map_err(|e| format!("failed to refresh token: {:?}", e))?;
+            std::fs::write(&access_token_file, &api.access_token.0)
+                .map_err(|e| format!("failed to write access_token: {:?}", e))?;
+            if let Some(refresh_token) = &api.refresh_token {
+                std::fs::write(&refresh_token_file, &refresh_token.0)
+                    .map_err(|e| format!("failed to write refresh_token: {:?}", e))?;
+            }
+            api
+        } else if access_token_file.exists() {
+            let tok = std::fs::read_to_string(&access_token_file)
+                .map_err(|e| {
+                    format!(
+                        "Failed to read the tesla access token file {:?}: {}",
+                        access_token_file, e
+                    )
+                })?
+                .trim()
+                .to_string();
             // println!("token: {}", tok);
             Api::new(AccessToken(tok), None)
         } else {
@@ -92,13 +132,12 @@ impl Greeter {
     }
 
     fn get_vehicles(&mut self) -> Result<String, String> {
-        //return Ok("Lightning\nHook".to_string());
         let api = self.api.as_ref().ok_or("Not logged in")?;
         let rt = tokio::runtime::Runtime::new().unwrap();
+
         let vehicles = rt
             .block_on(api.vehicles())
             .map_err(|e| format!("Failed to get vehicles: {}", e))?;
-        println!("{:?}", vehicles);
         self.vehicles = vehicles
             .data()
             .iter()
@@ -112,6 +151,55 @@ impl Greeter {
             })
             .trim()
             .to_string())
+    }
+
+    fn get_vehicle(&mut self, idx: i64) -> Result<String, String> {
+        let api = self.api.as_ref().ok_or("Not logged in")?;
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        let vid = &self.vehicles[idx as usize].0;
+        let vehicle = rt
+            .block_on(api.vehicle_data(vid))
+            .map_err(|e| format!("Failed to get vehicle {}: {}", idx, e))?;
+
+        let gps_pos = if let Some(drive_state) = &vehicle.drive_state {
+            format!("{},{}", drive_state.latitude, drive_state.longitude)
+        } else {
+            "".to_string()
+        };
+        let inside_temp = if let Some(climate_state) = &vehicle.climate_state {
+            if let Some(itemp) = climate_state.inside_temp {
+                format!("{}", itemp)
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        };
+        let outside_temp = if let Some(climate_state) = &vehicle.climate_state {
+            if let Some(otemp) = climate_state.outside_temp {
+                format!("{}", otemp)
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        };
+        let fan_status = 0;
+        let battery_level = 0;
+        let battery_range = 0.0;
+        let charge_amps = 0;
+        let vehicle_data = ReducedVehicleData {
+            gps_pos,
+            inside_temp,
+            outside_temp,
+            fan_status,
+            battery_level,
+            battery_range,
+            charge_amps,
+        };
+        serde_json::to_string(&vehicle_data)
+            .map_err(|e| format!("Failed to serialize ReducedVehicleData: {:?}", e))
     }
 
     fn log_err<T>(&mut self, res: Result<T, String>) -> Option<T> {
@@ -161,6 +249,7 @@ fn main() {
     engine.exec();
 }
 
+#[cfg(not(test))]
 fn init_gettext() {
     let domain = "uttesla.ulrichard";
     textdomain(domain).expect("Failed to set gettext domain");

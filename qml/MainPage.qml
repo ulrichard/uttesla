@@ -54,6 +54,7 @@ Page {
         RowLayout {
             spacing: units.gui(2)
 
+            /*
             Button {
                 text: i18n.tr('Login')
                 onClicked: {
@@ -61,12 +62,20 @@ Page {
                     vehicle.model = vehicles;
                 }
             }
+            */
+
+            Label {
+                id: lbl_vehicle
+                text: i18n.tr('Vehicle')
+            }
 
             ComboBox {
                 id: vehicle
                 onActivated: (i) => {
-                    var vehicle_data = greeter.get_vehicle_data(i).split("\n");
-                    txt_pos.text = vehicle_data[0];
+                    var vehicle_data = JSON.parse(greeter.get_vehicle_data(i));
+                    txt_pos.text = vehicle_data.gps_pos;
+                    lbl_temp.text = "Temperature Out:" + vehicle_data.outside_temp + " In: " + vehicle_data.inside_temp;
+
                 }
             }
         }
@@ -96,6 +105,30 @@ Page {
             }
         }
 
+	// temperature
+        RowLayout {
+            spacing: units.gui(2)
+
+            Label {
+                id: lbl_temp
+                text: i18n.tr('Temperature')
+            }
+
+	    /*
+            TextField {
+                id: txt_temp
+                placeholderText: i18n.tr('temp')
+                enabled: false
+                width: units.gui(2)
+            }
+
+            CheckBox {
+                id: chk_hvac
+                text: i18n.tr('HVAC')
+            }
+            */
+        }
+
 	TextArea {
 	    id: eventlog
             Layout.fillWidth: true
@@ -114,5 +147,11 @@ Page {
             }
         }
 
+    }
+
+    Component.onCompleted: {
+        var vehicles = greeter.login().split("\n");
+        vehicle.model = vehicles;
+	vehicle.activated(0);
     }
 }
