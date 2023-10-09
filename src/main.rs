@@ -91,10 +91,36 @@ impl Greeter {
         Ok(api)
     }
 
+    async fn test_get() -> Result<String, String> {
+        let cli = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap();
+        let request_builder = cli.get("https://ulrichard.ch/index.html");
+
+        let response_body = request_builder
+            .header("Accept", "application/html")
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .text()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        //println!("Response: {:?}", response_body);
+        Ok(response_body)
+    }
+
     fn get_vehicles(&mut self) -> Result<String, String> {
         //return Ok("Lightning\nHook".to_string());
         let api = self.api.as_ref().ok_or("Not logged in")?;
         let rt = tokio::runtime::Runtime::new().unwrap();
+
+        let index = rt
+            .block_on(Greeter::test_get());
+            //.map_err(|e| format!("Failed to get index: {}", e))?;
+        println!("{:?}", index);
+
         let vehicles = rt
             .block_on(api.vehicles())
             .map_err(|e| format!("Failed to get vehicles: {}", e))?;
@@ -161,6 +187,7 @@ fn main() {
     engine.exec();
 }
 
+#[cfg(not(test))]
 fn init_gettext() {
     let domain = "uttesla.ulrichard";
     textdomain(domain).expect("Failed to set gettext domain");

@@ -13,6 +13,7 @@ cstr = "0.2.8"
 cpp = "0.5"
 teslatte = "0.1.5"
 tokio = "1.32"
+reqwest = { version = "0.11.18", features = ["rustls-tls", "cookies", "json"] }
 
 [build-dependencies]
 cpp_build = "0.5"
