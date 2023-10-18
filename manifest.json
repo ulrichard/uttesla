@@ -9,7 +9,7 @@
             "desktop":  "uttesla.desktop"
         }
     },
-    "version": "0.0.3",
+    "version": "0.0.4",
     "maintainer": "Richard Ulrich <richi+uttesla@ulrichard.ch>",
     "framework" : "@CLICK_FRAMEWORK@"
 }
