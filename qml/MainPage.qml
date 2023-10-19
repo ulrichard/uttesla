@@ -75,7 +75,9 @@ Page {
                     var vehicle_data = JSON.parse(greeter.get_vehicle_data(i));
                     txt_pos.text = vehicle_data.gps_pos;
                     lbl_temp.text = "Temperature Out:" + vehicle_data.outside_temp + " In: " + vehicle_data.inside_temp;
-
+		    spb_temp.value = vehicle_data.driver_temp_setting;
+		    chk_hvac.checked = vehicle_data.hvac_enabled;
+		    lbl_batt.text = "Battery: " + vehicle_data.battery_level + "%  " + vehicle_data.battery_range + "km  " + vehicle_data.charge_rate + "chg rate  " + vehicle_data.charge_energy_added + "kWh";
                 }
             }
         }
@@ -113,37 +115,128 @@ Page {
                 id: lbl_temp
                 text: i18n.tr('Temperature')
             }
-
-	    /*
-            TextField {
-                id: txt_temp
-                placeholderText: i18n.tr('temp')
-                enabled: false
-                width: units.gui(2)
-            }
+	}
+        RowLayout {
+            spacing: units.gui(2)
 
             CheckBox {
                 id: chk_hvac
                 text: i18n.tr('HVAC')
+                onClicked: {
+                    greeter.hvac(vehicle.currentIndex, chk_hvac.checked, spb_temp.value);
+                }
             }
-            */
+
+            SpinBox {
+                id: spb_temp
+                value: 20
+            }
+        }
+
+	// battery
+        RowLayout {
+            spacing: units.gui(2)
+
+            Label {
+                id: lbl_batt
+                text: i18n.tr('Battery')
+            }
+	}
+        RowLayout {
+            spacing: units.gui(2)
+
+            Button {
+                id: btn_charge_start
+                text: i18n.tr('Start charging')
+                onClicked: {
+                    greeter.charge(vehicle.currentIndex, true);
+                }
+            }
+
+            Button {
+                id: btn_charge_stop
+                text: i18n.tr('Stop charging')
+                onClicked: {
+                    greeter.charge(vehicle.currentIndex, false);
+                }
+            }
+        }
+
+	// alerts
+        RowLayout {
+            spacing: units.gui(2)
+
+            Button {
+                id: btn_honk
+                text: i18n.tr('Honk')
+                onClicked: {
+                    greeter.honk(vehicle.currentIndex);
+                }
+            }
+
+            Button {
+                id: btn_flash
+                text: i18n.tr('Flash')
+                onClicked: {
+                    greeter.flash(vehicle.currentIndex);
+                }
+            }
+        }
+
+	// doors
+        RowLayout {
+            spacing: units.gui(2)
+
+            Button {
+                id: btn_unlock
+                text: i18n.tr('Unlock')
+                onClicked: {
+                    greeter.doors(vehicle.currentIndex, true);
+                }
+            }
+
+            Button {
+                id: btn_lock
+                text: i18n.tr('Lock')
+                onClicked: {
+                    greeter.doors(vehicle.currentIndex, false);
+                }
+            }
+
+            Button {
+                id: btn_drive
+                text: i18n.tr('Drive')
+                onClicked: {
+                    greeter.drive(vehicle.currentIndex);
+                }
+            }
         }
 
 	TextArea {
 	    id: eventlog
             Layout.fillWidth: true
             enabled: false
-	    text: "node is starting\n\n\n\n\n"
 	}
 
         Timer {
-            id: event_timer;
+            id: log_timer;
             interval: 2000;
             running: true;
             repeat: true
 
             onTriggered: {
                 eventlog.text = greeter.update_log();
+            }
+        }
+
+        Timer {
+            id: refresh_timer;
+            interval: 10000;
+            running: true;
+            repeat: true
+
+            onTriggered: {
+                vehicle.activated(vehicle.currentIndex);
             }
         }
 

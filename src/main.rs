@@ -29,7 +29,7 @@ use teslatte::auth::{AccessToken, RefreshToken};
 //use teslatte::vehicles::SetChargeLimit;
 //use teslatte::vehicles::Vehicle;
 use serde::Serialize;
-use teslatte::{Api, VehicleId};
+use teslatte::{vehicles::SetTemperatures, Api, VehicleId};
 
 use std::{env, fs::create_dir_all, path::PathBuf};
 
@@ -40,10 +40,12 @@ struct ReducedVehicleData {
     pub gps_pos: String,
     pub inside_temp: String,
     pub outside_temp: String,
-    pub fan_status: i64,
+    pub driver_temp_setting: i64,
+    pub hvac_enabled: bool,
     pub battery_level: i64,
     pub battery_range: f64,
-    pub charge_amps: i64,
+    pub charge_rate: f64,
+    pub charge_energy_added: f64,
 }
 
 #[derive(QObject, Default)]
@@ -73,8 +75,44 @@ struct Greeter {
     get_vehicle_data: qt_method!(
         fn get_vehicle_data(&mut self, idx: i64) -> QString {
             let vehicle = self.get_vehicle(idx);
-            println!("{}", vehicle.clone().unwrap());
+            println!("{}", vehicle.clone().unwrap_or_else(|e| e.to_string()));
             self.log_err_or(vehicle, "".to_string()).into()
+        }
+    ),
+    hvac: qt_method!(
+        fn hvac(&mut self, idx: i64, enable: bool, temp: i64) {
+            let res = self.enable_hvac(idx, enable, temp);
+            let _ = self.log_err(res);
+        }
+    ),
+    doors: qt_method!(
+        fn doors(&mut self, idx: i64, do_open: bool) {
+            let res = self.lock_doors(idx, do_open);
+            let _ = self.log_err(res);
+        }
+    ),
+    charge: qt_method!(
+        fn charge(&mut self, idx: i64, do_start: bool) {
+            let res = self.charging(idx, do_start);
+            let _ = self.log_err(res);
+        }
+    ),
+    honk: qt_method!(
+        fn honk(&mut self, idx: i64) {
+            let res = self.honk_horn(idx);
+            let _ = self.log_err(res);
+        }
+    ),
+    flash: qt_method!(
+        fn flash(&mut self, idx: i64) {
+            let res = self.flash_lights(idx);
+            let _ = self.log_err(res);
+        }
+    ),
+    drive: qt_method!(
+        fn drive(&mut self, idx: i64) {
+            let res = self.remote_start_drive(idx);
+            let _ = self.log_err(res);
         }
     ),
 }
@@ -158,6 +196,9 @@ impl Greeter {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         let vid = &self.vehicles[idx as usize].0;
+        let _ = rt
+            .block_on(api.wake_up(vid))
+            .map_err(|e| format!("Failed to wake up vehicle {}: {}", idx, e))?;
         let vehicle = rt
             .block_on(api.vehicle_data(vid))
             .map_err(|e| format!("Failed to get vehicle {}: {}", idx, e))?;
@@ -185,21 +226,128 @@ impl Greeter {
         } else {
             "".to_string()
         };
-        let fan_status = 0;
-        let battery_level = 0;
-        let battery_range = 0.0;
-        let charge_amps = 0;
+        let driver_temp_setting = if let Some(climate_state) = &vehicle.climate_state {
+            climate_state.driver_temp_setting as i64
+        } else {
+            20
+        };
+        let hvac_enabled = if let Some(climate_state) = &vehicle.climate_state {
+            climate_state.fan_status != 0
+        } else {
+            false
+        };
+        let (battery_level, battery_range, charge_rate, charge_energy_added) =
+            if let Some(charge_state) = &vehicle.charge_state {
+                (
+                    charge_state.battery_level,
+                    charge_state.battery_range * 1.609344,
+                    charge_state.charge_rate,
+                    charge_state.charge_energy_added,
+                )
+            } else {
+                (0, 0.0, 0.0, 0.0)
+            };
         let vehicle_data = ReducedVehicleData {
             gps_pos,
             inside_temp,
             outside_temp,
-            fan_status,
+            driver_temp_setting,
+            hvac_enabled,
             battery_level,
             battery_range,
-            charge_amps,
+            charge_rate,
+            charge_energy_added,
         };
         serde_json::to_string(&vehicle_data)
             .map_err(|e| format!("Failed to serialize ReducedVehicleData: {:?}", e))
+    }
+
+    fn enable_hvac(&mut self, idx: i64, enable: bool, temp: i64) -> Result<(), String> {
+        let api = self.api.as_ref().ok_or("Not logged in")?;
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let vid = &self.vehicles[idx as usize].0;
+
+        let temps = SetTemperatures {
+            driver_temp: temp as f32,
+            passenger_temp: temp as f32,
+        };
+        let _ = rt
+            .block_on(api.set_temps(vid, &temps))
+            .map_err(|e| format!("Failed to set hvac temperature {}: {}", idx, e))?;
+        let _ = if enable {
+            rt.block_on(api.auto_conditioning_start(vid))
+        } else {
+            rt.block_on(api.auto_conditioning_stop(vid))
+        }
+        .map_err(|e| format!("Failed to enable or disable hvac {}: {}", idx, e))?;
+
+        Ok(())
+    }
+
+    fn lock_doors(&mut self, idx: i64, do_open: bool) -> Result<(), String> {
+        let api = self.api.as_ref().ok_or("Not logged in")?;
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let vid = &self.vehicles[idx as usize].0;
+
+        let _ = if do_open {
+            rt.block_on(api.door_unlock(vid))
+        } else {
+            rt.block_on(api.door_lock(vid))
+        }
+        .map_err(|e| format!("Failed to (un)-lock the doors {}: {}", idx, e))?;
+
+        Ok(())
+    }
+
+    fn charging(&mut self, idx: i64, do_start: bool) -> Result<(), String> {
+        let api = self.api.as_ref().ok_or("Not logged in")?;
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let vid = &self.vehicles[idx as usize].0;
+
+        let _ = if do_start {
+            rt.block_on(api.charge_start(vid))
+        } else {
+            rt.block_on(api.charge_stop(vid))
+        }
+        .map_err(|e| format!("Failed to start/stop charging {}: {}", idx, e))?;
+
+        Ok(())
+    }
+
+    fn honk_horn(&mut self, idx: i64) -> Result<(), String> {
+        let api = self.api.as_ref().ok_or("Not logged in")?;
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let vid = &self.vehicles[idx as usize].0;
+
+        let _ = rt
+            .block_on(api.honk_horn(vid))
+            .map_err(|e| format!("Failed to honk the horn {}: {}", idx, e))?;
+
+        Ok(())
+    }
+
+    fn flash_lights(&mut self, idx: i64) -> Result<(), String> {
+        let api = self.api.as_ref().ok_or("Not logged in")?;
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let vid = &self.vehicles[idx as usize].0;
+
+        let _ = rt
+            .block_on(api.flash_lights(vid))
+            .map_err(|e| format!("Failed to flash the lights {}: {}", idx, e))?;
+
+        Ok(())
+    }
+
+    fn remote_start_drive(&mut self, idx: i64) -> Result<(), String> {
+        let api = self.api.as_ref().ok_or("Not logged in")?;
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let vid = &self.vehicles[idx as usize].0;
+
+        let _ = rt
+            .block_on(api.remote_start_drive(vid))
+            .map_err(|e| format!("Failed allow keyless driving {}: {}", idx, e))?;
+
+        Ok(())
     }
 
     fn log_err<T>(&mut self, res: Result<T, String>) -> Option<T> {
