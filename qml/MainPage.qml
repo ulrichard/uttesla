@@ -77,7 +77,8 @@ Page {
                     lbl_temp.text = "Temperature Out:" + vehicle_data.outside_temp + " In: " + vehicle_data.inside_temp;
 		    spb_temp.value = vehicle_data.driver_temp_setting;
 		    chk_hvac.checked = vehicle_data.hvac_enabled;
-		    lbl_batt.text = "Battery: " + vehicle_data.battery_level + "%  " + vehicle_data.battery_range.toFixed(1) + "km  " + vehicle_data.charge_rate + "chg rate  " + vehicle_data.charge_energy_added.toFixed(1) + "kWh";
+		    lbl_batt.text = "Battery: " + vehicle_data.battery_level + "%  " + vehicle_data.battery_range.toFixed(1) + "km";
+		    lbl_charge.text = "Charge rate: " + vehicle_data.charge_rate + "  minutes to full: " + vehicle_data.minutes_to_full_charge + "  added: " + vehicle_data.charge_energy_added.toFixed(1) + "kWh";
 		    spb_chg_limit.value = vehicle_data.charge_limit;
                 }
             }
@@ -145,6 +146,13 @@ Page {
             Label {
                 id: lbl_batt
                 text: i18n.tr('Battery')
+            }
+	}
+        RowLayout {
+            spacing: units.gui(2)
+            Label {
+                id: lbl_charge
+                text: i18n.tr('Charge')
             }
 	}
         RowLayout {

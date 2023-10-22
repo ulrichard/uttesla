@@ -25,9 +25,12 @@ use qt_core::{q_standard_paths::StandardLocation, QStandardPaths};
 mod constants;
 mod qrc;
 
-use teslatte::auth::{AccessToken, RefreshToken};
 use serde::Serialize;
-use teslatte::{vehicles::{SetTemperatures, SetChargeLimit}, Api, VehicleId};
+use teslatte::auth::{AccessToken, RefreshToken};
+use teslatte::{
+    vehicles::{SetChargeLimit, SetTemperatures},
+    Api, VehicleId,
+};
 
 use std::{env, fs::create_dir_all, path::PathBuf};
 
@@ -43,6 +46,7 @@ struct ReducedVehicleData {
     pub battery_level: i64,
     pub battery_range: f64,
     pub charge_rate: f64,
+    pub minutes_to_full_charge: i64,
     pub charge_energy_added: f64,
     pub charge_limit: i64,
 }
@@ -121,7 +125,13 @@ impl Greeter {
         let app_data_path =
             unsafe { QStandardPaths::writable_location(StandardLocation::AppDataLocation) };
         let app_data_path = PathBuf::from(app_data_path.to_std_string());
-        create_dir_all(&app_data_path).unwrap();
+        create_dir_all(&app_data_path).map_err(|e| {
+            format!(
+                "Failed to create app data directory {} : {}",
+                app_data_path.display(),
+                e
+            )
+        })?;
         let access_token_file = app_data_path.join("tesla_access_token.txt");
         let refresh_token_file = app_data_path.join("tesla_refresh_token.txt");
 
@@ -136,7 +146,8 @@ impl Greeter {
                 .trim()
                 .to_string();
 
-            let rt = tokio::runtime::Runtime::new().unwrap();
+            let rt = tokio::runtime::Runtime::new()
+                .map_err(|e| format!("Failed to create a tokio runtime: {}", e))?;
 
             let api = rt
                 .block_on(Api::from_refresh_token(&RefreshToken(tok)))
@@ -170,7 +181,8 @@ impl Greeter {
 
     fn get_vehicles(&mut self) -> Result<String, String> {
         let api = self.api.as_ref().ok_or("Not logged in")?;
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("Failed to create a tokio runtime: {}", e))?;
 
         let vehicles = rt
             .block_on(api.vehicles())
@@ -192,7 +204,8 @@ impl Greeter {
 
     fn get_vehicle(&mut self, idx: i64) -> Result<String, String> {
         let api = self.api.as_ref().ok_or("Not logged in")?;
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("Failed to create a tokio runtime: {}", e))?;
 
         let vid = &self.vehicles[idx as usize].0;
         let _ = rt
@@ -235,18 +248,26 @@ impl Greeter {
         } else {
             false
         };
-        let (battery_level, battery_range, charge_rate, charge_energy_added, charge_limit) =
-            if let Some(charge_state) = &vehicle.charge_state {
-                (
-                    charge_state.battery_level,
-                    charge_state.battery_range * 1.609344,
-                    charge_state.charge_rate,
-                    charge_state.charge_energy_added,
-                    charge_state.charge_limit_soc,
-                )
-            } else {
-                (0, 0.0, 0.0, 0.0, 80)
-            };
+        let (
+            battery_level,
+            battery_range,
+            charge_rate,
+            minutes_to_full_charge,
+            charge_energy_added,
+            charge_limit,
+        ) = if let Some(charge_state) = &vehicle.charge_state {
+            const MILE_TO_KM: f64 = 1.609344;
+            (
+                charge_state.battery_level,
+                charge_state.ideal_battery_range * MILE_TO_KM,
+                charge_state.charge_rate,
+                charge_state.minutes_to_full_charge,
+                charge_state.charge_energy_added,
+                charge_state.charge_limit_soc,
+            )
+        } else {
+            (0, 0.0, 0.0, 0, 0.0, 80)
+        };
         let vehicle_data = ReducedVehicleData {
             gps_pos,
             inside_temp,
@@ -256,6 +277,7 @@ impl Greeter {
             battery_level,
             battery_range,
             charge_rate,
+            minutes_to_full_charge,
             charge_energy_added,
             charge_limit,
         };
@@ -265,7 +287,8 @@ impl Greeter {
 
     fn enable_hvac(&mut self, idx: i64, enable: bool, temp: i64) -> Result<(), String> {
         let api = self.api.as_ref().ok_or("Not logged in")?;
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("Failed to create a tokio runtime: {}", e))?;
         let vid = &self.vehicles[idx as usize].0;
 
         let temps = SetTemperatures {
@@ -287,7 +310,8 @@ impl Greeter {
 
     fn lock_doors(&mut self, idx: i64, do_open: bool) -> Result<(), String> {
         let api = self.api.as_ref().ok_or("Not logged in")?;
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("Failed to create a tokio runtime: {}", e))?;
         let vid = &self.vehicles[idx as usize].0;
 
         let _ = if do_open {
@@ -302,11 +326,14 @@ impl Greeter {
 
     fn charging(&mut self, idx: i64, do_start: bool, charge_limit: u8) -> Result<(), String> {
         let api = self.api.as_ref().ok_or("Not logged in")?;
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("Failed to create a tokio runtime: {}", e))?;
         let vid = &self.vehicles[idx as usize].0;
 
         let _ = if do_start {
-            let limit = SetChargeLimit{percent: charge_limit};
+            let limit = SetChargeLimit {
+                percent: charge_limit,
+            };
             rt.block_on(api.set_charge_limit(vid, &limit))
                 .map_err(|e| format!("Failed to set charge limit {}: {}", idx, e))?;
             rt.block_on(api.charge_start(vid))
@@ -320,7 +347,8 @@ impl Greeter {
 
     fn honk_horn(&mut self, idx: i64) -> Result<(), String> {
         let api = self.api.as_ref().ok_or("Not logged in")?;
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("Failed to create a tokio runtime: {}", e))?;
         let vid = &self.vehicles[idx as usize].0;
 
         let _ = rt
@@ -332,7 +360,8 @@ impl Greeter {
 
     fn flash_lights(&mut self, idx: i64) -> Result<(), String> {
         let api = self.api.as_ref().ok_or("Not logged in")?;
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("Failed to create a tokio runtime: {}", e))?;
         let vid = &self.vehicles[idx as usize].0;
 
         let _ = rt
@@ -344,7 +373,8 @@ impl Greeter {
 
     fn remote_start_drive(&mut self, idx: i64) -> Result<(), String> {
         let api = self.api.as_ref().ok_or("Not logged in")?;
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("Failed to create a tokio runtime: {}", e))?;
         let vid = &self.vehicles[idx as usize].0;
 
         let _ = rt
