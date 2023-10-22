@@ -77,7 +77,8 @@ Page {
                     lbl_temp.text = "Temperature Out:" + vehicle_data.outside_temp + " In: " + vehicle_data.inside_temp;
 		    spb_temp.value = vehicle_data.driver_temp_setting;
 		    chk_hvac.checked = vehicle_data.hvac_enabled;
-		    lbl_batt.text = "Battery: " + vehicle_data.battery_level + "%  " + vehicle_data.battery_range + "km  " + vehicle_data.charge_rate + "chg rate  " + vehicle_data.charge_energy_added + "kWh";
+		    lbl_batt.text = "Battery: " + vehicle_data.battery_level + "%  " + vehicle_data.battery_range.toFixed(1) + "km  " + vehicle_data.charge_rate + "chg rate  " + vehicle_data.charge_energy_added.toFixed(1) + "kWh";
+		    spb_chg_limit.value = vehicle_data.charge_limit;
                 }
             }
         }
@@ -95,6 +96,7 @@ Page {
                 id: txt_pos
                 placeholderText: i18n.tr('Position')
                 enabled: false
+                implicitWidth: 150
             }
 
             Button {
@@ -130,6 +132,9 @@ Page {
             SpinBox {
                 id: spb_temp
                 value: 20
+                from: 10
+                to: 30
+                implicitWidth: 70
             }
         }
 
@@ -149,7 +154,7 @@ Page {
                 id: btn_charge_start
                 text: i18n.tr('Start charging')
                 onClicked: {
-                    greeter.charge(vehicle.currentIndex, true);
+                    greeter.charge(vehicle.currentIndex, true, spb_chg_limit.value);
                 }
             }
 
@@ -157,8 +162,21 @@ Page {
                 id: btn_charge_stop
                 text: i18n.tr('Stop charging')
                 onClicked: {
-                    greeter.charge(vehicle.currentIndex, false);
+                    greeter.charge(vehicle.currentIndex, false, spb_chg_limit.value);
                 }
+            }
+
+            Label {
+                id: lbl_chg_limit
+                text: i18n.tr('to %')
+            }
+            SpinBox {
+                id: spb_chg_limit
+                value: 80
+                from: 50
+                to: 100
+                stepSize: 5
+                implicitWidth: 80
             }
         }
 

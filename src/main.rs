@@ -26,10 +26,8 @@ mod constants;
 mod qrc;
 
 use teslatte::auth::{AccessToken, RefreshToken};
-//use teslatte::vehicles::SetChargeLimit;
-//use teslatte::vehicles::Vehicle;
 use serde::Serialize;
-use teslatte::{vehicles::SetTemperatures, Api, VehicleId};
+use teslatte::{vehicles::{SetTemperatures, SetChargeLimit}, Api, VehicleId};
 
 use std::{env, fs::create_dir_all, path::PathBuf};
 
@@ -46,6 +44,7 @@ struct ReducedVehicleData {
     pub battery_range: f64,
     pub charge_rate: f64,
     pub charge_energy_added: f64,
+    pub charge_limit: i64,
 }
 
 #[derive(QObject, Default)]
@@ -92,8 +91,8 @@ struct Greeter {
         }
     ),
     charge: qt_method!(
-        fn charge(&mut self, idx: i64, do_start: bool) {
-            let res = self.charging(idx, do_start);
+        fn charge(&mut self, idx: i64, do_start: bool, charge_limit: u8) {
+            let res = self.charging(idx, do_start, charge_limit);
             let _ = self.log_err(res);
         }
     ),
@@ -236,16 +235,17 @@ impl Greeter {
         } else {
             false
         };
-        let (battery_level, battery_range, charge_rate, charge_energy_added) =
+        let (battery_level, battery_range, charge_rate, charge_energy_added, charge_limit) =
             if let Some(charge_state) = &vehicle.charge_state {
                 (
                     charge_state.battery_level,
                     charge_state.battery_range * 1.609344,
                     charge_state.charge_rate,
                     charge_state.charge_energy_added,
+                    charge_state.charge_limit_soc,
                 )
             } else {
-                (0, 0.0, 0.0, 0.0)
+                (0, 0.0, 0.0, 0.0, 80)
             };
         let vehicle_data = ReducedVehicleData {
             gps_pos,
@@ -257,6 +257,7 @@ impl Greeter {
             battery_range,
             charge_rate,
             charge_energy_added,
+            charge_limit,
         };
         serde_json::to_string(&vehicle_data)
             .map_err(|e| format!("Failed to serialize ReducedVehicleData: {:?}", e))
@@ -299,12 +300,15 @@ impl Greeter {
         Ok(())
     }
 
-    fn charging(&mut self, idx: i64, do_start: bool) -> Result<(), String> {
+    fn charging(&mut self, idx: i64, do_start: bool, charge_limit: u8) -> Result<(), String> {
         let api = self.api.as_ref().ok_or("Not logged in")?;
         let rt = tokio::runtime::Runtime::new().unwrap();
         let vid = &self.vehicles[idx as usize].0;
 
         let _ = if do_start {
+            let limit = SetChargeLimit{percent: charge_limit};
+            rt.block_on(api.set_charge_limit(vid, &limit))
+                .map_err(|e| format!("Failed to set charge limit {}: {}", idx, e))?;
             rt.block_on(api.charge_start(vid))
         } else {
             rt.block_on(api.charge_stop(vid))
