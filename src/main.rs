@@ -38,6 +38,7 @@ use gettextrs::{bindtextdomain, textdomain};
 
 #[derive(Debug, Clone, Serialize)]
 struct ReducedVehicleData {
+    pub state: String,
     pub gps_pos: String,
     pub inside_temp: String,
     pub outside_temp: String,
@@ -215,6 +216,7 @@ impl Greeter {
             .block_on(api.vehicle_data(vid))
             .map_err(|e| format!("Failed to get vehicle {}: {}", idx, e))?;
 
+        let state = vehicle.state.to_string();
         let gps_pos = if let Some(drive_state) = &vehicle.drive_state {
             format!("{},{}", drive_state.latitude, drive_state.longitude)
         } else {
@@ -269,6 +271,7 @@ impl Greeter {
             (0, 0.0, 0.0, 0, 0.0, 80)
         };
         let vehicle_data = ReducedVehicleData {
+            state,
             gps_pos,
             inside_temp,
             outside_temp,
@@ -304,6 +307,12 @@ impl Greeter {
             rt.block_on(api.auto_conditioning_stop(vid))
         }
         .map_err(|e| format!("Failed to enable or disable hvac {}: {}", idx, e))?;
+        if enable {
+            self.eventlog
+                .push_front(format!("HVAC enabled to {}°C", temp));
+        } else {
+            self.eventlog.push_front("HVAC disabled".to_string());
+        }
 
         Ok(())
     }
@@ -320,6 +329,11 @@ impl Greeter {
             rt.block_on(api.door_lock(vid))
         }
         .map_err(|e| format!("Failed to (un)-lock the doors {}: {}", idx, e))?;
+        if do_open {
+            self.eventlog.push_front("doors unlocked".to_string());
+        } else {
+            self.eventlog.push_front("doors locked".to_string());
+        }
 
         Ok(())
     }
@@ -341,6 +355,12 @@ impl Greeter {
             rt.block_on(api.charge_stop(vid))
         }
         .map_err(|e| format!("Failed to start/stop charging {}: {}", idx, e))?;
+        if do_start {
+            self.eventlog
+                .push_front(format!("charging started up to {}%", charge_limit));
+        } else {
+            self.eventlog.push_front("charging stopped".to_string());
+        }
 
         Ok(())
     }
@@ -354,6 +374,7 @@ impl Greeter {
         let _ = rt
             .block_on(api.honk_horn(vid))
             .map_err(|e| format!("Failed to honk the horn {}: {}", idx, e))?;
+        self.eventlog.push_front("horn honked".to_string());
 
         Ok(())
     }
@@ -367,6 +388,7 @@ impl Greeter {
         let _ = rt
             .block_on(api.flash_lights(vid))
             .map_err(|e| format!("Failed to flash the lights {}: {}", idx, e))?;
+        self.eventlog.push_front("lights flashed".to_string());
 
         Ok(())
     }
@@ -380,6 +402,8 @@ impl Greeter {
         let _ = rt
             .block_on(api.remote_start_drive(vid))
             .map_err(|e| format!("Failed allow keyless driving {}: {}", idx, e))?;
+        self.eventlog
+            .push_front("Keyless driving active for two minutes".to_string());
 
         Ok(())
     }

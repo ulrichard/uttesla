@@ -72,15 +72,32 @@ Page {
             ComboBox {
                 id: vehicle
                 onActivated: (i) => {
-                    var vehicle_data = JSON.parse(greeter.get_vehicle_data(i));
-                    txt_pos.text = vehicle_data.gps_pos;
-                    lbl_temp.text = "Temperature Out:" + vehicle_data.outside_temp + " In: " + vehicle_data.inside_temp;
-		    spb_temp.value = vehicle_data.driver_temp_setting;
-		    chk_hvac.checked = vehicle_data.hvac_enabled;
-		    lbl_batt.text = "Battery: " + vehicle_data.battery_level + "%  " + vehicle_data.battery_range.toFixed(1) + "km";
-		    lbl_charge.text = "Charge rate: " + vehicle_data.charge_rate + "  minutes to full: " + vehicle_data.minutes_to_full_charge + "  added: " + vehicle_data.charge_energy_added.toFixed(1) + "kWh";
-		    spb_chg_limit.value = vehicle_data.charge_limit;
+                    try {
+		        var vehicle_data = JSON.parse(greeter.get_vehicle_data(i));
+		        lbl_state.text = vehicle_data.state;
+		        txt_pos.text = vehicle_data.gps_pos;
+		        lbl_temp.text = "Temperature Out:" + vehicle_data.outside_temp + " In: " + vehicle_data.inside_temp;
+		        spb_temp.value = vehicle_data.driver_temp_setting;
+			chk_hvac.checked = vehicle_data.hvac_enabled;
+			lbl_batt.text = "Battery: " + vehicle_data.battery_level + "%  " + vehicle_data.battery_range.toFixed(1) + "km";
+			lbl_charge.text = "Charge rate: " + vehicle_data.charge_rate + "  minutes remaining: " + vehicle_data.minutes_to_full_charge + "  added: " + vehicle_data.charge_energy_added.toFixed(1) + "kWh";
+			spb_chg_limit.value = vehicle_data.charge_limit;
+		    } catch(err) {
+		        lbl_state.text = "unavailable";
+		        txt_pos.text = "unavailable";
+		        lbl_temp.text = "Temperature unavailable";
+		        spb_temp.value = 22;
+			chk_hvac.checked = false;
+			lbl_batt.text = "Battery state unavailable";
+			lbl_charge.text = "Charge state unavailable";
+			spb_chg_limit.value = 80;
+		    }
                 }
+            }
+
+            Label {
+                id: lbl_state
+                text: i18n.tr('state')
             }
         }
 
