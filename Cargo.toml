@@ -1,6 +1,6 @@
 [package]
 name = "uttesla"
-version = "0.0.6"
+version = "0.0.7"
 authors = ["Richard Ulrich <richi+uttesla@ulrichard.ch>"]
 edition = "2021"
 build = "src/build.rs"

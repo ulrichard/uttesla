@@ -37,13 +37,13 @@ Page {
 
     header: PageHeader {
         id: header
-        title: i18n.tr('uttesla')
+        title: i18n.tr('Tesla')
     }
 
     ColumnLayout {
-        spacing: units.gu(2)
+        spacing: units.gu(1)
         anchors {
-            margins: units.gu(2)
+            margins: units.gu(1)
             top: header.bottom
             left: parent.left
             right: parent.right
@@ -52,7 +52,7 @@ Page {
 
         // vehicles
         RowLayout {
-            spacing: units.gui(2)
+            spacing: units.gu(1)
 
             /*
             Button {
@@ -103,7 +103,7 @@ Page {
 
 	// position
         RowLayout {
-            spacing: units.gui(2)
+            spacing: units.gu(1)
 
             Label {
                 id: lbl_pos
@@ -114,7 +114,7 @@ Page {
                 id: txt_pos
                 placeholderText: i18n.tr('Position')
                 enabled: false
-                implicitWidth: 150
+                implicitWidth: units.gu(20)
             }
 
             Button {
@@ -129,7 +129,7 @@ Page {
 
 	// temperature
         RowLayout {
-            spacing: units.gui(2)
+            spacing: units.gu(1)
 
             Label {
                 id: lbl_temp
@@ -137,7 +137,12 @@ Page {
             }
 	}
         RowLayout {
-            spacing: units.gui(2)
+            spacing: units.gu(1)
+
+            Label {
+                id: lbl_hvac
+                text: i18n.tr('HVAC')
+            }
 
             CheckBox {
                 id: chk_hvac
@@ -152,13 +157,13 @@ Page {
                 value: 20
                 from: 10
                 to: 30
-                implicitWidth: 70
+                implicitWidth: units.gu(9)
             }
         }
 
 	// battery
         RowLayout {
-            spacing: units.gui(2)
+            spacing: units.gu(1)
 
             Label {
                 id: lbl_batt
@@ -166,14 +171,14 @@ Page {
             }
 	}
         RowLayout {
-            spacing: units.gui(2)
+            spacing: units.gu(1)
             Label {
                 id: lbl_charge
                 text: i18n.tr('Charge')
             }
 	}
         RowLayout {
-            spacing: units.gui(2)
+            spacing: units.gu(1)
 
             Button {
                 id: btn_charge_start
@@ -201,13 +206,13 @@ Page {
                 from: 50
                 to: 100
                 stepSize: 5
-                implicitWidth: 80
+                implicitWidth: units.gu(10)
             }
         }
 
 	// alerts
         RowLayout {
-            spacing: units.gui(2)
+            spacing: units.gu(1)
 
             Button {
                 id: btn_honk
@@ -228,7 +233,7 @@ Page {
 
 	// doors
         RowLayout {
-            spacing: units.gui(2)
+            spacing: units.gu(1)
 
             Button {
                 id: btn_unlock
