@@ -43,6 +43,8 @@ init:
 setup:
 	sudo apt install docker.io adb git python3 python3-pip mesa-utils libgl1-mesa-glx
 	pip3 install --user --break-system-packages --upgrade clickable-ut
+	clickable update-images
+	clickable clean-images
 
 
 /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt: /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt.gpg

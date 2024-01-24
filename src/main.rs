@@ -28,8 +28,9 @@ mod qrc;
 use serde::Serialize;
 use teslatte::auth::{AccessToken, RefreshToken};
 use teslatte::{
-    vehicles::{SetChargeLimit, SetTemperatures},
-    Api, VehicleId,
+    vehicles::{SetChargeLimit, SetTemperatures, GetVehicleData},
+    products::Product,
+    OwnerApi, VehicleApi, VehicleId,
 };
 
 use std::{env, fs::create_dir_all, path::PathBuf};
@@ -56,7 +57,7 @@ struct ReducedVehicleData {
 struct Greeter {
     base: qt_base_class!(trait QObject),
     eventlog: std::collections::VecDeque<String>,
-    api: Option<Api>,
+    api: Option<OwnerApi>,
     vehicles: Vec<(VehicleId, String)>,
 
     login: qt_method!(
@@ -122,7 +123,7 @@ struct Greeter {
 }
 
 impl Greeter {
-    fn log_in(&self) -> Result<Api, String> {
+    fn log_in(&self) -> Result<OwnerApi, String> {
         let app_data_path =
             unsafe { QStandardPaths::writable_location(StandardLocation::AppDataLocation) };
         let app_data_path = PathBuf::from(app_data_path.to_std_string());
@@ -151,7 +152,7 @@ impl Greeter {
                 .map_err(|e| format!("Failed to create a tokio runtime: {}", e))?;
 
             let api = rt
-                .block_on(Api::from_refresh_token(&RefreshToken(tok)))
+                .block_on(OwnerApi::from_refresh_token(&RefreshToken(tok)))
                 .map_err(|e| format!("failed to refresh token: {:?}", e))?;
             std::fs::write(&access_token_file, &api.access_token.0)
                 .map_err(|e| format!("failed to write access_token: {:?}", e))?;
@@ -171,10 +172,10 @@ impl Greeter {
                 .trim()
                 .to_string();
             // println!("token: {}", tok);
-            Api::new(AccessToken(tok), None)
+            OwnerApi::new(AccessToken(tok), None)
         } else {
             return Err("not supported yet".to_string());
-            //Api::from_interactive_url().await.unwrap()
+            //OwnerApi::from_interactive_url().await.unwrap()
         };
 
         Ok(api)
@@ -186,12 +187,17 @@ impl Greeter {
             .map_err(|e| format!("Failed to create a tokio runtime: {}", e))?;
 
         let vehicles = rt
-            .block_on(api.vehicles())
+            .block_on(api.products())
             .map_err(|e| format!("Failed to get vehicles: {}", e))?;
         self.vehicles = vehicles
-            .data()
             .iter()
-            .map(|v| (v.id.clone(), v.display_name.clone()))
+            .filter_map(|v| match v {
+                Product::Vehicle(veh) => {
+                    let display_name = veh.display_name.as_ref().unwrap_or(&"".to_string()).to_string();
+                    Some((veh.id.clone(), display_name))
+                },
+                _ => None,
+            })
             .collect();
         Ok(self
             .vehicles
@@ -213,12 +219,12 @@ impl Greeter {
             .block_on(api.wake_up(vid))
             .map_err(|e| format!("Failed to wake up vehicle {}: {}", idx, e))?;
         let vehicle = rt
-            .block_on(api.vehicle_data(vid))
+            .block_on(api.vehicle_data(&GetVehicleData::new(vid.clone())))
             .map_err(|e| format!("Failed to get vehicle {}: {}", idx, e))?;
 
         let state = vehicle.state.to_string();
         let gps_pos = if let Some(drive_state) = &vehicle.drive_state {
-            format!("{},{}", drive_state.latitude, drive_state.longitude)
+            format!("{},{}", drive_state.latitude.unwrap_or_default(), drive_state.longitude.unwrap_or_default())
         } else {
             "".to_string()
         };
@@ -348,8 +354,10 @@ impl Greeter {
             let limit = SetChargeLimit {
                 percent: charge_limit,
             };
-            rt.block_on(api.set_charge_limit(vid, &limit))
-                .map_err(|e| format!("Failed to set charge limit {}: {}", idx, e))?;
+            if let Err(e) = rt.block_on(api.set_charge_limit(vid, &limit)) {
+                self.eventlog
+                    .push_front(format!("Failed to set charge limit {}: {}", idx, e));
+            }
             rt.block_on(api.charge_start(vid))
         } else {
             rt.block_on(api.charge_stop(vid))
@@ -487,7 +495,7 @@ mod tests {
         println!("access_token_file: {}", access_token_file.display());
         let tok = std::fs::read_to_string(&access_token_file).unwrap();
         println!("access_token: {}", tok);
-        let api = Api::new(AccessToken(tok), None);
+        let api = OwnerApi::new(AccessToken(tok), None);
 
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let vehicles = rt.block_on(api.vehicles()).unwrap();
@@ -500,7 +508,7 @@ mod tests {
     fn test_login_fail() {
         let tok = "ThisIsNotAValidAccessToken".to_string();
         println!("access_token: {}", tok);
-        let api = Api::new(AccessToken(tok), None);
+        let api = OwnerOwnerApi::new(AccessToken(tok), None);
 
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let vehicles = rt.block_on(api.vehicles()).unwrap();

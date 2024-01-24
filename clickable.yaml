@@ -7,4 +7,4 @@ install_root_data:
 - uttesla.apparmor
 - uttesla.desktop
 - assets
-rust_channel: "1.70"
+rust_channel: "1.75"
