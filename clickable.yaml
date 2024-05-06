@@ -8,3 +8,14 @@ install_root_data:
 - uttesla.desktop
 - assets
 rust_channel: "1.75"
+image_setup:
+  run:
+  - wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+  - apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-12 main"
+  - apt-get update
+  - apt-get install -y clang-12 lld-12
+  - update-alternatives --install /usr/bin/cc cc /usr/bin/clang-12 60
+  - update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-12 60
+  env:
+    CC: clang-12
+    CXX: clang++-12
