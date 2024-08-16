@@ -4,10 +4,7 @@
 # If the logs target doesn't show the logs, check the following file on the device:  ~/.cache/upstart/application-click-uttesla.ulrichard_uttesla_0.0.2.log
 
 gui: /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_access_token.txt /home/richi/.clickable/home/.local/share/uttesla.ulrichard/tesla_refresh_token.txt
-	export all_proxy=""
-	export ALL_PROXY=""
-	export PATH=$PATH:~/.local/bin
-	clickable update || clickable desktop
+	bash -c "ALL_PROXY='' clickable update || clickable desktop"
 
 test:
 	export all_proxy=""
@@ -32,6 +29,7 @@ publish:
 	clickable publish --apikey $(shell gpg -d api-key.gpg) --arch amd64
 	# clickable build --arch armhf
 	# clickable publish --apikey $(shell gpg -d api-key.gpg) --arch armhf
+	open https://open-store.io/manage/uttesla.ulrichard
 
 logs:
 	clickable logs --arch arm64

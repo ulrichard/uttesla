@@ -28,8 +28,8 @@ mod qrc;
 use serde::Serialize;
 use teslatte::auth::{AccessToken, RefreshToken};
 use teslatte::{
-    vehicles::{SetChargeLimit, SetTemperatures, GetVehicleData},
     products::Product,
+    vehicles::{GetVehicleData, SetChargeLimit, SetTemperatures},
     OwnerApi, VehicleApi, VehicleId,
 };
 
@@ -193,9 +193,18 @@ impl Greeter {
             .iter()
             .filter_map(|v| match v {
                 Product::Vehicle(veh) => {
-                    let display_name = veh.display_name.as_ref().unwrap_or(&"".to_string()).to_string();
+                    let display_name = veh
+                        .display_name
+                        .as_ref()
+                        .unwrap_or(&"".to_string())
+                        .to_string();
+                    let display_name = if display_name.is_empty() {
+                        veh.vin.to_string()
+                    } else {
+                        display_name
+                    };
                     Some((veh.id.clone(), display_name))
-                },
+                }
                 _ => None,
             })
             .collect();
@@ -224,7 +233,11 @@ impl Greeter {
 
         let state = vehicle.state.to_string();
         let gps_pos = if let Some(drive_state) = &vehicle.drive_state {
-            format!("{},{}", drive_state.latitude.unwrap_or_default(), drive_state.longitude.unwrap_or_default())
+            format!(
+                "{},{}",
+                drive_state.latitude.unwrap_or_default(),
+                drive_state.longitude.unwrap_or_default()
+            )
         } else {
             "".to_string()
         };

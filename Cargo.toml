@@ -1,6 +1,6 @@
 [package]
 name = "uttesla"
-version = "0.0.8"
+version = "0.0.9"
 authors = ["Richard Ulrich <richi+uttesla@ulrichard.ch>"]
 edition = "2021"
 build = "src/build.rs"
@@ -11,8 +11,9 @@ qt_core = "0.5.0"
 gettext-rs = "0.7"
 cstr = "0.2.8"
 cpp = "0.5"
-teslatte = "0.1.13"
+#teslatte = "0.1.13"
 #teslatte = { git = "https://github.com/ulrichard/teslatte", branch = "feature/test_external" }
+teslatte = { git = "https://github.com/gak/teslatte", branch = "main" }
 #teslatte = { git = "https://github.com/gak/teslatte", rev = "3d583f7e0b424b22d91f83d7d7f07a51b9c53845" }
 #teslatte = { path = "../../github/teslatte"}
 tokio = "1.32"
