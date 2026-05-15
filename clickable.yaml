@@ -1,21 +1,21 @@
-clickable_minimum_required: 7.1.2
+clickable_minimum_required: 8.0.0
 builder: rust
-framework: ubuntu-sdk-20.04
+framework: ubuntu-touch-24.04-1.x
 kill: uttesla
 install_root_data:
 - manifest.json
 - uttesla.apparmor
 - uttesla.desktop
 - assets
-rust_channel: "1.75"
+rust_channel: "1.90"
 image_setup:
   run:
   - wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-  - apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-12 main"
+  - apt-add-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-17 main"
   - apt-get update
-  - apt-get install -y clang-12 lld-12
-  - update-alternatives --install /usr/bin/cc cc /usr/bin/clang-12 60
-  - update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-12 60
-  env:
-    CC: clang-12
-    CXX: clang++-12
+  #- apt-get install -y clang-16 lld-16
+  #- update-alternatives --install /usr/bin/cc cc /usr/bin/clang-16 60
+  #- update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-16 60
+  #env:
+  #  CC: clang-16
+  #  CXX: clang++-16

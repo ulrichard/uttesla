@@ -1,8 +1,8 @@
 [package]
 name = "uttesla"
-version = "0.0.9"
+version = "0.0.10"
 authors = ["Richard Ulrich <richi+uttesla@ulrichard.ch>"]
-edition = "2021"
+edition = "2024"
 build = "src/build.rs"
 
 [dependencies]

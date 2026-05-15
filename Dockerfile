@@ -1,4 +1,4 @@
-FROM debian:testing
+FROM debian:trixie
 
 RUN apt update \
  && apt -y install \
